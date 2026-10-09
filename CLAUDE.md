@@ -10,15 +10,16 @@ gets no other context.
 
 | Purpose | Command | Notes |
 |---|---|---|
-| Dev server | `npm run dev` | Turbopack, port 3000 |
-| Typecheck | `npm run typecheck` | `tsc --noEmit` |
-| Test | `npm test` | Vitest + Testing Library, jsdom; `npm run test:watch` to iterate |
-| Lint | `npm run lint` | flat config; React Compiler rules are ERRORS |
-| Build | `npm run build` | runs typecheck + prerender |
+| Install | `pnpm install` | pnpm 11, Node 24.x; `engine-strict` fails a mismatched Node |
+| Dev server | `pnpm dev` | Turbopack, port 3000 |
+| Typecheck | `pnpm typecheck` | `tsc --noEmit` |
+| Test | `pnpm test` | Vitest + Testing Library, jsdom; `pnpm test:watch` to iterate |
+| Lint | `pnpm lint` | flat config; React Compiler rules are ERRORS |
+| Build | `pnpm build` | runs typecheck + prerender |
 
 **Verification gate.** Per `superpowers:verification-before-completion`, no
-completion claim without fresh output from `npm run typecheck && npm run lint &&
-npm run build && npm test` in the *current* message.
+completion claim without fresh output from `pnpm typecheck && pnpm lint &&
+pnpm build && pnpm test` in the *current* message.
 
 ## Architecture invariants
 
@@ -112,7 +113,15 @@ src/test/       test helpers (render-with-query)
   Adding both is a route collision. After deleting a page, `rm -rf .next` or
   stale `.next/types` will fail the typecheck.
 - **Env fails fast.** `src/config/env.ts` parses at module load. Add a var to the
-  schema *and* `.env.example` in the same commit.
+  schema *and* `.env.example` in the same commit. The one exception is a
+  build-only var read by `next.config.ts` (today: `SKIP_TYPECHECK`) — it goes in
+  `.env.example` only, since the app never reads it.
+- **pnpm, not npm.** `package-lock.json` must not come back. A new dependency
+  with a build script fails `pnpm install` until it gets an `allowBuilds` entry
+  in `pnpm-workspace.yaml` — decide `true`/`false` there, with a reason.
+- **Vercel deploys only `main` and `develop`.** `vercel.json` gates branches;
+  `scripts/vercel-ignore-build.sh` also skips docs-only commits. Change deploy
+  branches in both places.
 - **`NEXT_PUBLIC_API_BASE_URL`** defaults to jsonplaceholder so the repo runs with
   no setup. The `users` resource is a reference example — delete it once real
   ones exist.

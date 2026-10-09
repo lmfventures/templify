@@ -44,7 +44,7 @@ Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Compl
 Project-wide requirements, exact values copied verbatim from the spec. Every
 task's requirements implicitly include this section.
 
-- Verification gate: `npm run typecheck && npm run lint && npm run build` must
+- Verification gate: `pnpm typecheck && pnpm lint && pnpm build` must
   pass, with fresh output, before any task is claimed complete.
 - Architecture invariants in `CLAUDE.md` are binding — in particular: only
   `src/lib/api/client.ts` performs HTTP; `src/lib/api/<name>.ts` owns the upstream
@@ -121,7 +121,7 @@ Expected: PASS — 1 passed
 
 - [ ] **Step 5: Verify the repo is clean**
 
-Run: `npm run typecheck && npm run lint`
+Run: `pnpm typecheck && pnpm lint`
 Expected: exit 0, no output from eslint
 
 - [ ] **Step 6: Commit**

@@ -5,16 +5,18 @@ boundaries and a folder structure that keeps routes thin.
 
 ## Getting started
 
-**Prerequisites** — Node.js `>=20.9` (Next 16's floor; developed on 24.x) and npm.
+**Prerequisites** — Node.js 24.x (`.nvmrc`) and pnpm 11 (`corepack enable` picks
+the version pinned in `packageManager`). `.npmrc` sets `engine-strict`, so a
+mismatched Node fails the install instead of drifting from Vercel.
 No database, no external services: the boilerplate boots against a public
 placeholder API.
 
 ```bash
 git clone https://github.com/lmfventures/templify.git
 cd templify
-npm install
+pnpm install
 cp .env.example .env.local
-npm run dev
+pnpm dev
 ```
 
 Open http://localhost:3000. The dashboard at `/dashboard` exercises both
@@ -29,27 +31,28 @@ surfacing on the first request. Copy `.env.example` and adjust:
 | Variable | Required | Default | Notes |
 |---|---|---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | no | `https://jsonplaceholder.typicode.com` | Upstream REST API, called from the browser and the server. Public — never put a secret behind it. Inlined at `next build`: rebuild to change it. |
+| `SKIP_TYPECHECK` | no | `0` | Build-only, read by `next.config.ts` (not part of the `env.ts` schema). `1` skips `tsc` during `next build` — set it in Vercel only when type checking runs elsewhere. |
 
-Adding a variable means editing the schema in `src/config/env.ts` *and*
+Adding an app variable means editing the schema in `src/config/env.ts` *and*
 `.env.example` in the same commit — the parse is the only gate.
 
 ### Scripts
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Dev server on port 3000 (Turbopack) |
-| `npm run build` | Production build; runs typecheck and prerenders |
-| `npm start` | Serve a build produced by `npm run build` |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest run, once (jsdom + Testing Library) |
-| `npm run test:watch` | Vitest in watch mode |
-| `npm run lint` | ESLint flat config — React Compiler rules are **errors**, not warnings |
-| `npm run lint:fix` | Same, with autofix |
+| `pnpm dev` | Dev server on port 3000 (Turbopack) |
+| `pnpm build` | Production build; runs typecheck and prerenders |
+| `pnpm start` | Serve a build produced by `pnpm build` |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest run, once (jsdom + Testing Library) |
+| `pnpm test:watch` | Vitest in watch mode |
+| `pnpm lint` | ESLint flat config — React Compiler rules are **errors**, not warnings |
+| `pnpm lint:fix` | Same, with autofix |
 
 Before calling a change done, run the full gate:
 
 ```bash
-npm run typecheck && npm run lint && npm run build && npm test
+pnpm typecheck && pnpm lint && pnpm build && pnpm test
 ```
 
 Tests live beside what they test, as `*.test.ts` / `*.test.tsx` under `src/`.
@@ -163,6 +166,75 @@ leaves the browser.
 boilerplate runs with no setup — point it at your own API and delete the `users`
 example. The upstream must allow CORS and must not need a secret — see the
 Direct REST caveats in `CLAUDE.md`.
+
+## Deploying to Vercel
+
+`vercel.json` is the source of truth for install, build and which branches
+deploy, so every project started from this template behaves the same.
+
+### Branch → environment
+
+| Branch | Vercel deployment | Triggered by |
+|---|---|---|
+| `main` | **Production** | push / merge |
+| `develop` | **Preview** (staging) | push / merge |
+| anything else | **none** | — |
+
+Work on feature branches, open PRs into `develop`, and promote `develop` →
+`main`. Only the merges deploy.
+
+Branch filtering has two layers:
+
+1. **`vercel.json` → `git.deploymentEnabled`** — the primary gate. `"**": false`
+   disables every branch (including ones with `/`, like `feature/login`), then
+   `main` and `develop` are re-enabled. Blocked branches never queue a build, so
+   they cost no build minutes or concurrency slots.
+2. **`scripts/vercel-ignore-build.sh`** (Ignored Build Step) — the safety net. It
+   re-checks the branch (override with an `ALLOWED_BRANCHES` env var,
+   space-separated) and skips the build when only `*.md`, `docs/`, `.github/`,
+   `.vscode/` or `LICENSE` changed since the last deployment — so specs, plans
+   and `CLAUDE.md` edits don't build.
+
+Changing the deploy branches? Update **both** `vercel.json` and
+`ALLOWED_BRANCHES` (or the default in the script). Test the script locally:
+
+```bash
+VERCEL_GIT_COMMIT_REF=feature/foo bash scripts/vercel-ignore-build.sh; echo "exit=$?  (0 = skip)"
+```
+
+### Build-time optimizations in the repo
+
+| Setting | Why |
+|---|---|
+| Turbopack (Next 16 default) | Rust bundler, much faster than webpack |
+| Turbopack build FS cache (on by default since 16.3) | Writes to `.next/cache`, which Vercel restores between builds → incremental rebuilds |
+| `pnpm install --frozen-lockfile --prefer-offline` | Deterministic install that reuses Vercel's cached store |
+| `packageManager` + `engines.node` + `.nvmrc` | Vercel uses the exact pnpm and Node versions — no drift, no fallback installs |
+| `pnpm-workspace.yaml` `allowBuilds` | Every dependency build script is decided up front; pnpm 11 fails the install otherwise |
+| `productionBrowserSourceMaps: false` | Skips browser source map generation |
+| `SKIP_TYPECHECK=1` (opt-in env var) | Skips `tsc` during `next build` when you type-check elsewhere |
+| Ignored Build Step | Docs-only commits don't build at all |
+
+### Once per project, in the Vercel dashboard
+
+These can't be expressed in `vercel.json`:
+
+1. **Settings → Git → Production Branch:** `main`.
+2. **Settings → Build and Deployment → Build Machine:** *Enhanced* or *Turbo*
+   (paid plans) — the single biggest build-time win.
+3. **Settings → Build and Deployment → On-Demand Concurrent Builds:** enable, so
+   `main` and `develop` never queue behind each other.
+4. **Settings → Build and Deployment → Prioritize Production Builds:** enable.
+5. **Settings → Environment Variables:** scope staging values to *Preview* +
+   branch `develop`, production values to *Production*. Remember
+   `NEXT_PUBLIC_API_BASE_URL` is inlined at build, so each environment needs its
+   own value before it builds.
+6. *(Optional, Pro)* **Settings → Environments:** a `staging` custom environment
+   tracking `develop` for a dedicated domain and env-var set.
+7. Don't set Build/Install command overrides in the dashboard — keep
+   `vercel.json` the one place they're defined.
+
+Never commit `.vercel/`; each project links itself with `vercel link`.
 
 ## Working in this repo with Claude Code
 
