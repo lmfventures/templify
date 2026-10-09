@@ -149,7 +149,7 @@ Project-wide requirements with exact values. The implementation plan copies this
 section **verbatim** into its own Global Constraints, so state values here rather
 than describing them.
 
-- Verification gate: `npm run typecheck && npm run lint && npm run build` passes
+- Verification gate: `pnpm typecheck && pnpm lint && pnpm build` passes
   with fresh output before any task is claimed complete.
 - The architecture invariants in `CLAUDE.md` are binding.
 - <version floors, dependency limits, naming and copy rules, platform requirements>

@@ -12,6 +12,7 @@ result of those rules.
 | Stack | Next.js 16.3 (App Router, Turbopack) · React 19.2 · TypeScript 5 · Tailwind CSS 4 |
 | Data | axios 1.x (fetch adapter) · zod 4 · TanStack Query 5 |
 | Tests | Vitest 5 · Testing Library · jsdom (10 test files) |
+| Tooling | pnpm 11 · Node 24.x · deployed on Vercel (`main` → Production, `develop` → Preview) |
 | Upstream | Any CORS-enabled REST API; defaults to jsonplaceholder |
 | Resources | `users`, a reference example meant to be replaced |
 | Completed work | TanStack Query on the client (spec/plan 2026-09-06) · direct REST from browser and server, BFF removed (spec/plan 2026-10-02) |
@@ -218,13 +219,16 @@ query client/provider/factories, the three `users` Client Components, and
 .
 ├── AGENTS.md, CLAUDE.md        agent rules (CLAUDE.md = invariants + workflow)
 ├── ARCHITECTURE.md             this file
-├── README.md                   setup, scripts, conventions
+├── README.md                   setup, scripts, conventions, Vercel deploy
+├── vercel.json                 install/build commands, branch gating
+├── next.config.ts              build tuning (no source maps, SKIP_TYPECHECK)
+├── pnpm-workspace.yaml         allowBuilds decisions for dependency scripts
 ├── .claude/                    agent config (enabled plugins)
 ├── docs/
 │   └── superpowers/
 │       ├── specs/              design specs (+ TEMPLATE.md)
 │       └── plans/              implementation plans (+ TEMPLATE.md)
-├── scripts/                    new-spec.sh, new-plan.sh
+├── scripts/                    new-spec.sh, new-plan.sh, vercel-ignore-build.sh
 ├── public/
 └── src/
     ├── app/                    routes only
@@ -257,5 +261,5 @@ query client/provider/factories, the three `users` Client Components, and
 - `users` is a placeholder and should be removed once a real resource exists.
 - Unused scaffolding: `Paginated<T>`, `ApiError.toBody()` / `ApiError.from()`,
   `formatDate`, `truncate`.
-- `next.config.ts` is empty, and no cache tag is ever revalidated.
+- No cache tag is ever revalidated.
 - `dashboard/error.tsx` logs to the console. Error reporting isn't wired up.

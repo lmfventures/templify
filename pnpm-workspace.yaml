@@ -1,0 +1,5 @@
+# pnpm 11 fails the install on any dependency build script not decided here.
+allowBuilds:
+  # Its postinstall only fetches a native binding that pnpm already installs
+  # through optional platform packages.
+  unrs-resolver: false
